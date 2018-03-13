@@ -13,18 +13,6 @@ import java.util.ArrayList;
  */
 public class MapInfo {
 
-    public static class MapTable {
-        public MapTable(String name, String col1, String col2) {
-            this.name = name;
-            this.column1 = col1;
-            this.column2 = col2;
-        }
-
-        public String name;
-        public String column1;
-        public String column2;
-    }
-
     public ArrayList<MapTable> tableList;
     public ArrayList<SQLStatement> mapNewRelationSQL;
     public ArrayList<SQLStatement> delOldRelationSQL;
@@ -64,6 +52,17 @@ public class MapInfo {
 
     public boolean isEmpty() {
         return Checker.isEmpty(tableList)
-               || Checker.isEmpty(mapNewRelationSQL) && Checker.isEmpty(delOldRelationSQL);
+                || Checker.isEmpty(mapNewRelationSQL) && Checker.isEmpty(delOldRelationSQL);
+    }
+
+    public static class MapTable {
+        public String name;
+        public String column1;
+        public String column2;
+        public MapTable(String name, String col1, String col2) {
+            this.name = name;
+            this.column1 = col1;
+            this.column2 = col2;
+        }
     }
 }

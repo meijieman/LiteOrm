@@ -4,7 +4,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
 import android.os.Build;
-import android.util.Log;
+
 import com.litesuits.orm.db.TableManager;
 import com.litesuits.orm.db.assit.Querier.CursorParser;
 import com.litesuits.orm.db.model.ColumnsValue;
@@ -19,7 +19,11 @@ import com.litesuits.orm.log.OrmLog;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.Iterator;
 
 /**
  * sql语句构造与执行
@@ -28,11 +32,11 @@ import java.util.*;
  * @date 2013-6-14下午7:48:34
  */
 public class SQLStatement implements Serializable {
-    private static final long serialVersionUID = -3790876762607683712L;
-    private static final String TAG = SQLStatement.class.getSimpleName();
     public static final short NONE = -1;
     public static final short NORMAL = 0;
     public static final int IN_TOP_LIMIT = 999;
+    private static final long serialVersionUID = -3790876762607683712L;
+    private static final String TAG = SQLStatement.class.getSimpleName();
     /**
      * sql语句
      */
@@ -484,7 +488,7 @@ public class SQLStatement implements Serializable {
     @Override
     public String toString() {
         return "SQLStatement [sql=" + sql + ", bindArgs=" + Arrays.toString(bindArgs) + ", mStatement=" + mStatement
-               + "]";
+                + "]";
     }
     /*------------------------------ 私有方法 ------------------------------*/
 

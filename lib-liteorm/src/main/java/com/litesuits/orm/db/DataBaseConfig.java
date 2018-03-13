@@ -16,6 +16,7 @@
 package com.litesuits.orm.db;
 
 import android.content.Context;
+
 import com.litesuits.orm.db.assit.Checker;
 import com.litesuits.orm.db.assit.SQLiteHelper.OnUpdateListener;
 
@@ -59,7 +60,7 @@ public class DataBaseConfig {
     @Override
     public String toString() {
         return "DataBaseConfig [mContext=" + context + ", mDbName=" + dbName + ", mDbVersion="
-               + dbVersion + ", mOnUpdateListener=" + onUpdateListener + "]";
+                + dbVersion + ", mOnUpdateListener=" + onUpdateListener + "]";
     }
 
 }

@@ -33,11 +33,11 @@ public class EntityTable implements Serializable {
      * N对N 关系映射表
      */
     public ArrayList<MapProperty> mappingList;
+
     /**
      * 是否已对该表进行检查
      */
     //public boolean isChecked = false;
-
     public void addMapping(MapProperty pro) {
         if (mappingList == null) {
             mappingList = new ArrayList<MapProperty>();

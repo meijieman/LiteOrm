@@ -11,14 +11,10 @@ import java.util.regex.Pattern;
  * @date 2013-6-14下午3:47:16
  */
 public class QueryBuilder<T> {
-    private static final Pattern limitPattern = Pattern.compile("\\s*\\d+\\s*(,\\s*\\d+\\s*)?");
-
     public static final String ASC = " ASC";
     public static final String DESC = " DESC";
     public static final String AND = " AND ";
     public static final String OR = " OR ";
-
-
     public static final String GROUP_BY = " GROUP BY ";
     public static final String HAVING = " HAVING ";
     public static final String ORDER_BY = " ORDER BY ";
@@ -31,7 +27,7 @@ public class QueryBuilder<T> {
     public static final String EQUAL_HOLDER = "=?";
     public static final String COMMA_HOLDER = ",?";
     public static final String COMMA = ",";
-
+    private static final Pattern limitPattern = Pattern.compile("\\s*\\d+\\s*(,\\s*\\d+\\s*)?");
     protected Class<T> clazz;
     protected Class clazzMapping;
     protected boolean distinct;
@@ -42,10 +38,6 @@ public class QueryBuilder<T> {
     protected String limit;
     protected WhereBuilder whereBuilder;
 
-    public Class<T> getQueryClass() {
-        return clazz;
-    }
-
     public QueryBuilder(Class<T> claxx) {
         this.clazz = claxx;
         whereBuilder = new WhereBuilder(claxx);
@@ -53,6 +45,39 @@ public class QueryBuilder<T> {
 
     public static <T> QueryBuilder<T> create(Class<T> claxx) {
         return new QueryBuilder<T>(claxx);
+    }
+
+    /**
+     * 添加条件
+     */
+    private static void appendClause(StringBuilder s, String name, String clause) {
+        if (!Checker.isEmpty(clause)) {
+            s.append(name);
+            s.append(clause);
+        }
+    }
+
+    /**
+     * 添加列，逗号分隔
+     */
+    private static void appendColumns(StringBuilder s, String[] columns) {
+        int n = columns.length;
+
+        for (int i = 0; i < n; i++) {
+            String column = columns[i];
+
+            if (column != null) {
+                if (i > 0) {
+                    s.append(",");
+                }
+                s.append(column);
+            }
+        }
+        s.append(" ");
+    }
+
+    public Class<T> getQueryClass() {
+        return clazz;
     }
 
     public QueryBuilder<T> where(WhereBuilder builder) {
@@ -236,7 +261,6 @@ public class QueryBuilder<T> {
         return this;
     }
 
-
     public QueryBuilder<T> appendOrderAscBy(String column) {
         if (order == null) {
             order = column + ASC;
@@ -270,14 +294,13 @@ public class QueryBuilder<T> {
         return this;
     }
 
-
     /**
      * 构建查询语句
      */
     public SQLStatement createStatement() {
         if (clazz == null) {
             throw new IllegalArgumentException("U Must Set A Query Entity Class By queryWho(Class) or " +
-                                               "QueryBuilder(Class)");
+                    "QueryBuilder(Class)");
         }
         if (Checker.isEmpty(group) && !Checker.isEmpty(having)) {
             throw new IllegalArgumentException(
@@ -337,36 +360,6 @@ public class QueryBuilder<T> {
             return TableManager.getMapTableName(clazz, clazzMapping);
         }
     }
-
-    /**
-     * 添加条件
-     */
-    private static void appendClause(StringBuilder s, String name, String clause) {
-        if (!Checker.isEmpty(clause)) {
-            s.append(name);
-            s.append(clause);
-        }
-    }
-
-    /**
-     * 添加列，逗号分隔
-     */
-    private static void appendColumns(StringBuilder s, String[] columns) {
-        int n = columns.length;
-
-        for (int i = 0; i < n; i++) {
-            String column = columns[i];
-
-            if (column != null) {
-                if (i > 0) {
-                    s.append(",");
-                }
-                s.append(column);
-            }
-        }
-        s.append(" ");
-    }
-
 
     private String buildWhereIn(String column, int num) {
         StringBuilder sb = new StringBuilder(column).append(" IN (?");

@@ -31,6 +31,6 @@ publish {
     groupId = 'com.litesuits' // jcenter 上的路径，应为域名反转 com.hongfans
     artifactId = 'orm' // 项目名称
     publishVersion = '1.0.0' // 版本号
-    desc = '数据库操作库' // 描述
-    website = 'https://github.com/meijieman/liteorm' // 网站
+    desc = '数据库操作框架' // 描述
+    website = 'https://github.com/meijieman/LiteOrm' // 网站
 }

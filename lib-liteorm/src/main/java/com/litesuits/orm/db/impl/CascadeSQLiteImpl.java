@@ -2,19 +2,35 @@ package com.litesuits.orm.db.impl;
 
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+
 import com.litesuits.orm.LiteOrm;
 import com.litesuits.orm.db.DataBaseConfig;
 import com.litesuits.orm.db.TableManager;
-import com.litesuits.orm.db.assit.*;
+import com.litesuits.orm.db.assit.Checker;
+import com.litesuits.orm.db.assit.Querier;
+import com.litesuits.orm.db.assit.QueryBuilder;
+import com.litesuits.orm.db.assit.SQLBuilder;
+import com.litesuits.orm.db.assit.SQLStatement;
+import com.litesuits.orm.db.assit.Transaction;
 import com.litesuits.orm.db.assit.Transaction.Worker;
-import com.litesuits.orm.db.model.*;
+import com.litesuits.orm.db.assit.WhereBuilder;
+import com.litesuits.orm.db.model.ColumnsValue;
+import com.litesuits.orm.db.model.ConflictAlgorithm;
+import com.litesuits.orm.db.model.EntityTable;
+import com.litesuits.orm.db.model.MapProperty;
+import com.litesuits.orm.db.model.Property;
+import com.litesuits.orm.db.model.RelationKey;
 import com.litesuits.orm.db.utils.ClassUtil;
 import com.litesuits.orm.db.utils.DataUtil;
 import com.litesuits.orm.db.utils.FieldUtil;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * 数据SQLite操作关联实现
@@ -26,6 +42,10 @@ import java.util.*;
 public final class CascadeSQLiteImpl extends LiteOrm {
 
     public static final String TAG = CascadeSQLiteImpl.class.getSimpleName();
+    /* --------------------------------  私有方法：增删改相关 -------------------------------- */
+    public static final int TYPE_INSERT = 1;
+    public static final int TYPE_UPDATE = 2;
+    public static final int TYPE_DELETE = 3;
 
     protected CascadeSQLiteImpl(LiteOrm dataBase) {
         super(dataBase);
@@ -37,6 +57,24 @@ public final class CascadeSQLiteImpl extends LiteOrm {
 
     public synchronized static LiteOrm newInstance(DataBaseConfig config) {
         return new CascadeSQLiteImpl(config);
+    }
+
+    /**
+     * 获取被删除对象的参数
+     */
+    public static Object[] getDeleteStatementArgs(Object entity) throws IllegalAccessException {
+        EntityTable table = TableManager.getTable(entity);
+        if (table.key != null) {
+            return new String[]{String.valueOf(FieldUtil.get(table.key.field, entity))};
+        } else if (!Checker.isEmpty(table.pmap)) {
+            Object[] args = new Object[table.pmap.size()];
+            int i = 0;
+            for (Property p : table.pmap.values()) {
+                args[i++] = FieldUtil.get(p.field, entity);
+            }
+            return args;
+        }
+        return null;
     }
 
     @Override
@@ -212,7 +250,6 @@ public final class CascadeSQLiteImpl extends LiteOrm {
         return deleteAll(claxx);
     }
 
-
     @Override
     public <T> int delete(final Collection<T> collection) {
         acquireReference();
@@ -299,6 +336,8 @@ public final class CascadeSQLiteImpl extends LiteOrm {
         }
     }
 
+    /* --------------------------------  私有方法: 查询相关 -------------------------------- */
+
     @Override
     public <T> ArrayList<T> query(Class<T> claxx) {
         return checkTableAndQuery(claxx, new QueryBuilder<T>(claxx));
@@ -325,7 +364,7 @@ public final class CascadeSQLiteImpl extends LiteOrm {
         return null;
     }
 
-    /* --------------------------------  私有方法: 查询相关 -------------------------------- */
+    /* --------------------------------  私有方法: 集合操作相关 -------------------------------- */
 
     /**
      * 过程：
@@ -504,8 +543,6 @@ public final class CascadeSQLiteImpl extends LiteOrm {
         }
     }
 
-    /* --------------------------------  私有方法: 集合操作相关 -------------------------------- */
-
     /**
      * 将集合更高效地存储下来
      *
@@ -661,29 +698,6 @@ public final class CascadeSQLiteImpl extends LiteOrm {
         }
         return SQLStatement.NONE;
     }
-
-    /**
-     * 获取被删除对象的参数
-     */
-    public static Object[] getDeleteStatementArgs(Object entity) throws IllegalAccessException {
-        EntityTable table = TableManager.getTable(entity);
-        if (table.key != null) {
-            return new String[]{String.valueOf(FieldUtil.get(table.key.field, entity))};
-        } else if (!Checker.isEmpty(table.pmap)) {
-            Object[] args = new Object[table.pmap.size()];
-            int i = 0;
-            for (Property p : table.pmap.values()) {
-                args[i++] = FieldUtil.get(p.field, entity);
-            }
-            return args;
-        }
-        return null;
-    }
-
-    /* --------------------------------  私有方法：增删改相关 -------------------------------- */
-    public static final int TYPE_INSERT = 1;
-    public static final int TYPE_UPDATE = 2;
-    public static final int TYPE_DELETE = 3;
 
     /**
      * 通过递归保存[该对象]，以及该对象所有的[关联对象]以及它们的[映射关系]
@@ -962,7 +976,7 @@ public final class CascadeSQLiteImpl extends LiteOrm {
         if (insertNew && !Checker.isEmpty(coll)) {
             ArrayList<SQLStatement> sqlList = SQLBuilder.buildMappingToManySql(key1, table1, table2, coll);
             if (!Checker.isEmpty(sqlList)) {
-                for(SQLStatement sql: sqlList){
+                for (SQLStatement sql : sqlList) {
                     sql.execInsert(db);
                 }
             }

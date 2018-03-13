@@ -9,12 +9,12 @@ import java.lang.annotation.Target;
 
 /**
  * 关系映射
- * 
+ *
  * @author mty
  * @date 2013-6-8上午1:13:18
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Mapping {
-	Relation value();
+    Relation value();
 }

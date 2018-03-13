@@ -31,18 +31,18 @@ public class WhereBuilder {
         this.tableClass = tableClass;
     }
 
+    public WhereBuilder(Class tableClass, String where, Object[] whereArgs) {
+        this.where = where;
+        this.whereArgs = whereArgs;
+        this.tableClass = tableClass;
+    }
+
     public static WhereBuilder create(Class tableClass) {
         return new WhereBuilder(tableClass);
     }
 
     public static WhereBuilder create(Class tableClass, String where, Object[] whereArgs) {
         return new WhereBuilder(tableClass, where, whereArgs);
-    }
-
-    public WhereBuilder(Class tableClass, String where, Object[] whereArgs) {
-        this.where = where;
-        this.whereArgs = whereArgs;
-        this.tableClass = tableClass;
     }
 
     public Class getTableClass() {

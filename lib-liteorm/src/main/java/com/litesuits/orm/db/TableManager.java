@@ -18,6 +18,7 @@ package com.litesuits.orm.db;
 
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+
 import com.litesuits.orm.db.annotation.Column;
 import com.litesuits.orm.db.annotation.Mapping;
 import com.litesuits.orm.db.annotation.PrimaryKey;
@@ -25,10 +26,15 @@ import com.litesuits.orm.db.annotation.Table;
 import com.litesuits.orm.db.assit.Checker;
 import com.litesuits.orm.db.assit.Querier;
 import com.litesuits.orm.db.assit.SQLBuilder;
+import com.litesuits.orm.db.assit.SQLStatement;
 import com.litesuits.orm.db.assit.Transaction;
 import com.litesuits.orm.db.enums.AssignType;
-import com.litesuits.orm.db.assit.SQLStatement;
-import com.litesuits.orm.db.model.*;
+import com.litesuits.orm.db.model.EntityTable;
+import com.litesuits.orm.db.model.MapProperty;
+import com.litesuits.orm.db.model.Primarykey;
+import com.litesuits.orm.db.model.Property;
+import com.litesuits.orm.db.model.SQLiteColumn;
+import com.litesuits.orm.db.model.SQLiteTable;
 import com.litesuits.orm.db.utils.DataUtil;
 import com.litesuits.orm.db.utils.FieldUtil;
 import com.litesuits.orm.log.OrmLog;
@@ -49,9 +55,12 @@ public final class TableManager {
     private static final String TAG = TableManager.class.getSimpleName();
     private static final String ID[] = new String[]{"id", "_id"};
     /**
-     * 数据库表信息
+     * 这里放的是类的实体信息表（主键、属性、关系映射...）
+     * 全局单例
+     * key : Class Name
+     * value: {@link EntityTable}
      */
-    private String dbName = "";
+    private final static HashMap<String, EntityTable> mEntityTableMap = new HashMap<String, EntityTable>();
     /**
      * 这里放的是数据库表信息（表名、字段、建表语句...）
      * 每个数据库对应一个
@@ -59,18 +68,171 @@ public final class TableManager {
      * value: {@link EntityTable}
      */
     private final HashMap<String, SQLiteTable> mSqlTableMap = new HashMap<String, SQLiteTable>();
-
     /**
-     * 这里放的是类的实体信息表（主键、属性、关系映射...）
-     * 全局单例
-     * key : Class Name
-     * value: {@link EntityTable}
+     * 数据库表信息
      */
-    private final static HashMap<String, EntityTable> mEntityTableMap = new HashMap<String, EntityTable>();
+    private String dbName = "";
 
     public TableManager(String dbName, SQLiteDatabase db) {
         this.dbName = dbName;
         initSqlTable(db);
+    }
+
+    /**
+     * 获取缓存实体表信息
+     */
+    private static EntityTable getEntityTable(String name) {
+        return mEntityTableMap.get(name);
+    }
+
+    /**
+     * 缓存的实体表信息
+     *
+     * @return 返回前一个和此Key相同的Value，没有则返回null。
+     */
+    private static EntityTable putEntityTable(String tableName, EntityTable entity) {
+        return mEntityTableMap.put(tableName, entity);
+    }
+
+    /**
+     * 根据实体生成表信息,一定需要PrimaryKey
+     */
+    public static EntityTable getTable(Object entity) {
+        return getTable(entity.getClass(), true);
+    }
+
+    /**
+     * 根据类生成表信息,一定需要PrimaryKey
+     */
+    public static EntityTable getTable(Class<?> claxx) {
+        return getTable(claxx, true);
+    }
+
+    /**
+     * 获取实体表信息(Entity Table)
+     * 注意映射表存储在MAP中，key 为 class name， value 为 entity table。
+     *
+     * @return {@link EntityTable}
+     */
+    public static synchronized EntityTable getTable(Class<?> claxx, boolean needPK) {
+        EntityTable table = getEntityTable(claxx.getName());
+        //if(OrmLog.isPrint)OrmLog.i(TAG, "table : " + table + "  , claxx: " + claxx);
+        if (table == null) {
+            table = new EntityTable();
+            table.claxx = claxx;
+            table.name = getTableName(claxx);
+            table.pmap = new LinkedHashMap<String, Property>();
+            List<Field> fields = FieldUtil.getAllDeclaredFields(claxx);
+            for (Field f : fields) {
+                if (FieldUtil.isInvalid(f)) {
+                    continue;
+                }
+
+                // 获取列名,每个属性都有，没有注解默认取属性名
+                Column col = f.getAnnotation(Column.class);
+                String column = col != null ? col.value() : f.getName();
+                Property p = new Property(column, f);
+
+
+                // 主键判断
+                PrimaryKey key = f.getAnnotation(PrimaryKey.class);
+                if (key != null) {
+                    // 主键不加入属性Map
+                    table.key = new Primarykey(p, key.value());
+                    // 主键为系统分配,对类型有要求
+                    checkPrimaryKey(table.key);
+                } else {
+                    //ORM handle
+                    Mapping mapping = f.getAnnotation(Mapping.class);
+                    if (mapping != null) {
+                        table.addMapping(new MapProperty(p, mapping.value()));
+                    } else {
+                        table.pmap.put(p.column, p);
+                    }
+                }
+            }
+            if (table.key == null) {
+                for (String col : table.pmap.keySet()) {
+                    for (String id : ID) {
+                        if (id.equalsIgnoreCase(col)) {
+                            Property p = table.pmap.get(col);
+                            if (p.field.getType() == String.class) {
+                                // 主键移除属性Map
+                                table.pmap.remove(col);
+                                table.key = new Primarykey(p, AssignType.BY_MYSELF);
+                                break;
+                            } else if (FieldUtil.isNumber(p.field.getType())) {
+                                // 主键移除属性Map
+                                table.pmap.remove(col);
+                                table.key = new Primarykey(p, AssignType.AUTO_INCREMENT);
+                                break;
+                            }
+
+                        }
+                    }
+                    if (table.key != null) {
+                        break;
+                    }
+                }
+            }
+            if (needPK && table.key == null) {
+                throw new RuntimeException(
+                        "你必须为[" + table.claxx.getSimpleName() + "]设置主键(you must set the primary key...)" +
+                                "\n 提示：在对象的属性上加PrimaryKey注解来设置主键。");
+            }
+            putEntityTable(claxx.getName(), table);
+        }
+        return table;
+    }
+
+    private static void checkPrimaryKey(Primarykey key) {
+        if (key.isAssignedBySystem()) {
+            if (!FieldUtil.isNumber(key.field.getType())) {
+                throw new RuntimeException(
+                        AssignType.AUTO_INCREMENT
+                                + " Auto increment primary key must be a number ...\n " +
+                                "错误提示：自增主键必须设置为数字类型");
+            }
+        } else if (key.isAssignedByMyself()) {
+            if (String.class != key.field.getType() && !FieldUtil.isNumber(key.field.getType())) {
+                throw new RuntimeException(
+                        AssignType.BY_MYSELF
+                                + " Custom primary key must be string or number ...\n " +
+                                "错误提示：自定义主键值必须为String或者Number类型");
+            }
+        } else {
+            throw new RuntimeException(
+                    " Primary key without Assign Type ...\n " +
+                            "错误提示：主键无类型");
+        }
+    }
+
+    /**
+     * 根据类自动生成表名字
+     */
+    public static String getTableName(Class<?> claxx) {
+        Table anno = claxx.getAnnotation(Table.class);
+        if (anno != null) {
+            return anno.value();
+        } else {
+            return claxx.getName().replaceAll("\\.", "_");
+        }
+    }
+
+    public static String getMapTableName(Class c1, Class c2) {
+        return getMapTableName(getTableName(c1), getTableName(c2));
+    }
+
+    public static String getMapTableName(EntityTable t1, EntityTable t2) {
+        return getMapTableName(t1.name, t2.name);
+    }
+
+    public static String getMapTableName(String tableName1, String tableName2) {
+        if (tableName1.compareTo(tableName2) < 0) {
+            return tableName1 + "_" + tableName2;
+        } else {
+            return tableName2 + "_" + tableName1;
+        }
     }
 
     public void initSqlTable(SQLiteDatabase db) {
@@ -115,6 +277,7 @@ public final class TableManager {
         return table;
     }
 
+    /* —————————————————————————— 静态私有方法 ———————————————————————— */
 
     /**
      * 检测[映射表]是否建立，没有则建一张新表。
@@ -145,6 +308,7 @@ public final class TableManager {
     public boolean isSQLTableCreated(String tableName) {
         return mSqlTableMap.get(tableName) != null;
     }
+    /* —————————————————————————— 静态公共方法 ———————————————————————— */
 
     /**
      * 检查表是否存在，存在的话检查是否需要改动，添加列字段。
@@ -170,7 +334,7 @@ public final class TableManager {
                         stmt.execute(db);
                         if (OrmLog.isPrint) {
                             OrmLog.i(TAG, "Table [" + entityTable.name + "] Primary Key has changed, " +
-                                          "so drop and recreate it later.");
+                                    "so drop and recreate it later.");
                         }
                         return false;
                     }
@@ -194,7 +358,7 @@ public final class TableManager {
                             } else {
                                 OrmLog.e(TAG,
                                         "Table [" + entityTable.name + "] add " + sum + " new column error ： " +
-                                        newColumns);
+                                                newColumns);
                             }
                         }
                     }
@@ -346,24 +510,6 @@ public final class TableManager {
         return null;
     }
 
-    /* —————————————————————————— 静态私有方法 ———————————————————————— */
-
-    /**
-     * 获取缓存实体表信息
-     */
-    private static EntityTable getEntityTable(String name) {
-        return mEntityTableMap.get(name);
-    }
-
-    /**
-     * 缓存的实体表信息
-     *
-     * @return 返回前一个和此Key相同的Value，没有则返回null。
-     */
-    private static EntityTable putEntityTable(String tableName, EntityTable entity) {
-        return mEntityTableMap.put(tableName, entity);
-    }
-
     /**
      * 获取映射表信息(Entity Table)
      * 注意映射表存储在MAP中，key 为 database name + table name， value 为 entity table。
@@ -381,148 +527,6 @@ public final class TableManager {
             TableManager.putEntityTable(dbName + tableName, table);
         }
         return table;
-    }
-    /* —————————————————————————— 静态公共方法 ———————————————————————— */
-
-    /**
-     * 根据实体生成表信息,一定需要PrimaryKey
-     */
-    public static EntityTable getTable(Object entity) {
-        return getTable(entity.getClass(), true);
-    }
-
-    /**
-     * 根据类生成表信息,一定需要PrimaryKey
-     */
-    public static EntityTable getTable(Class<?> claxx) {
-        return getTable(claxx, true);
-    }
-
-    /**
-     * 获取实体表信息(Entity Table)
-     * 注意映射表存储在MAP中，key 为 class name， value 为 entity table。
-     *
-     * @return {@link EntityTable}
-     */
-    public static synchronized EntityTable getTable(Class<?> claxx, boolean needPK) {
-        EntityTable table = getEntityTable(claxx.getName());
-        //if(OrmLog.isPrint)OrmLog.i(TAG, "table : " + table + "  , claxx: " + claxx);
-        if (table == null) {
-            table = new EntityTable();
-            table.claxx = claxx;
-            table.name = getTableName(claxx);
-            table.pmap = new LinkedHashMap<String, Property>();
-            List<Field> fields = FieldUtil.getAllDeclaredFields(claxx);
-            for (Field f : fields) {
-                if (FieldUtil.isInvalid(f)) {
-                    continue;
-                }
-
-                // 获取列名,每个属性都有，没有注解默认取属性名
-                Column col = f.getAnnotation(Column.class);
-                String column = col != null ? col.value() : f.getName();
-                Property p = new Property(column, f);
-
-
-                // 主键判断
-                PrimaryKey key = f.getAnnotation(PrimaryKey.class);
-                if (key != null) {
-                    // 主键不加入属性Map
-                    table.key = new Primarykey(p, key.value());
-                    // 主键为系统分配,对类型有要求
-                    checkPrimaryKey(table.key);
-                } else {
-                    //ORM handle
-                    Mapping mapping = f.getAnnotation(Mapping.class);
-                    if (mapping != null) {
-                        table.addMapping(new MapProperty(p, mapping.value()));
-                    } else {
-                        table.pmap.put(p.column, p);
-                    }
-                }
-            }
-            if (table.key == null) {
-                for (String col : table.pmap.keySet()) {
-                    for (String id : ID) {
-                        if (id.equalsIgnoreCase(col)) {
-                            Property p = table.pmap.get(col);
-                            if (p.field.getType() == String.class) {
-                                // 主键移除属性Map
-                                table.pmap.remove(col);
-                                table.key = new Primarykey(p, AssignType.BY_MYSELF);
-                                break;
-                            } else if (FieldUtil.isNumber(p.field.getType())) {
-                                // 主键移除属性Map
-                                table.pmap.remove(col);
-                                table.key = new Primarykey(p, AssignType.AUTO_INCREMENT);
-                                break;
-                            }
-
-                        }
-                    }
-                    if (table.key != null) {
-                        break;
-                    }
-                }
-            }
-            if (needPK && table.key == null) {
-                throw new RuntimeException(
-                        "你必须为[" + table.claxx.getSimpleName() + "]设置主键(you must set the primary key...)" +
-                        "\n 提示：在对象的属性上加PrimaryKey注解来设置主键。");
-            }
-            putEntityTable(claxx.getName(), table);
-        }
-        return table;
-    }
-
-    private static void checkPrimaryKey(Primarykey key) {
-        if (key.isAssignedBySystem()) {
-            if (!FieldUtil.isNumber(key.field.getType())) {
-                throw new RuntimeException(
-                        AssignType.AUTO_INCREMENT
-                        + " Auto increment primary key must be a number ...\n " +
-                        "错误提示：自增主键必须设置为数字类型");
-            }
-        } else if (key.isAssignedByMyself()) {
-            if (String.class != key.field.getType() && !FieldUtil.isNumber(key.field.getType())) {
-                throw new RuntimeException(
-                        AssignType.BY_MYSELF
-                        + " Custom primary key must be string or number ...\n " +
-                        "错误提示：自定义主键值必须为String或者Number类型");
-            }
-        } else {
-            throw new RuntimeException(
-                    " Primary key without Assign Type ...\n " +
-                    "错误提示：主键无类型");
-        }
-    }
-
-    /**
-     * 根据类自动生成表名字
-     */
-    public static String getTableName(Class<?> claxx) {
-        Table anno = claxx.getAnnotation(Table.class);
-        if (anno != null) {
-            return anno.value();
-        } else {
-            return claxx.getName().replaceAll("\\.", "_");
-        }
-    }
-
-    public static String getMapTableName(Class c1, Class c2) {
-        return getMapTableName(getTableName(c1), getTableName(c2));
-    }
-
-    public static String getMapTableName(EntityTable t1, EntityTable t2) {
-        return getMapTableName(t1.name, t2.name);
-    }
-
-    public static String getMapTableName(String tableName1, String tableName2) {
-        if (tableName1.compareTo(tableName2) < 0) {
-            return tableName1 + "_" + tableName2;
-        } else {
-            return tableName2 + "_" + tableName1;
-        }
     }
 
 }

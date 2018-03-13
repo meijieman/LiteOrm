@@ -1,17 +1,13 @@
 package com.litesuits.orm.db.utils;
 
-import android.annotation.TargetApi;
-import android.os.Build;
 import com.litesuits.orm.db.annotation.MapCollection;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
-import java.util.List;
 
 /**
  * 类工具

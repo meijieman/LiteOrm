@@ -31,7 +31,7 @@ public class FieldUtil {
      */
     public static boolean isInvalid(Field f) {
         return (Modifier.isStatic(f.getModifiers()) && Modifier.isFinal(f.getModifiers()))
-               || isIgnored(f) || f.isSynthetic();
+                || isIgnored(f) || f.isSynthetic();
     }
 
     public static boolean isLong(Field field) {
@@ -97,14 +97,16 @@ public class FieldUtil {
             IllegalAccessException {
         Object obj = get(key.field, entity);
         if (key.isAssignedByMyself()
-            || (key.isAssignedBySystem() && obj != null && ((Number) obj).longValue() > 0)) { return obj; }
+                || (key.isAssignedBySystem() && obj != null && ((Number) obj).longValue() > 0)) {
+            return obj;
+        }
         return null;
     }
 
     public static boolean setKeyValueIfneed(Object entity, Primarykey key, Object keyObj, long rowID)
             throws IllegalArgumentException, IllegalAccessException {
         if (key != null && key.isAssignedBySystem()
-            && (keyObj == null || ((Number) keyObj).longValue() < 1)) {
+                && (keyObj == null || ((Number) keyObj).longValue() < 1)) {
             FieldUtil.setNumber(entity, key.field, rowID);
             return true;
         }
@@ -153,13 +155,13 @@ public class FieldUtil {
 
     public static boolean isNumber(Class<?> claxx) {
         return claxx == long.class
-               || claxx == Long.class
-               || claxx == int.class
-               || claxx == Integer.class
-               || claxx == short.class
-               || claxx == Short.class
-               || claxx == byte.class
-               || claxx == Byte.class;
+                || claxx == Long.class
+                || claxx == int.class
+                || claxx == Integer.class
+                || claxx == short.class
+                || claxx == Short.class
+                || claxx == byte.class
+                || claxx == Byte.class;
     }
 
 }

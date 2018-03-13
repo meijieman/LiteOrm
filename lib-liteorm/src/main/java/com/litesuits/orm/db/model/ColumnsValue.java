@@ -86,7 +86,6 @@ public class ColumnsValue {
     //public boolean hasValues() {
     //    return values != null;
     //}
-
     public Object getValue(String key) {
         return map.get(key);
     }

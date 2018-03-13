@@ -19,14 +19,25 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteClosable;
 import android.database.sqlite.SQLiteDatabase;
+
 import com.litesuits.orm.db.DataBase;
 import com.litesuits.orm.db.DataBaseConfig;
 import com.litesuits.orm.db.TableManager;
-import com.litesuits.orm.db.annotation.Check;
-import com.litesuits.orm.db.assit.*;
+import com.litesuits.orm.db.assit.Checker;
+import com.litesuits.orm.db.assit.CollSpliter;
+import com.litesuits.orm.db.assit.Querier;
+import com.litesuits.orm.db.assit.QueryBuilder;
+import com.litesuits.orm.db.assit.SQLBuilder;
+import com.litesuits.orm.db.assit.SQLStatement;
+import com.litesuits.orm.db.assit.SQLiteHelper;
+import com.litesuits.orm.db.assit.WhereBuilder;
 import com.litesuits.orm.db.impl.CascadeSQLiteImpl;
 import com.litesuits.orm.db.impl.SingleSQLiteImpl;
-import com.litesuits.orm.db.model.*;
+import com.litesuits.orm.db.model.ColumnsValue;
+import com.litesuits.orm.db.model.ConflictAlgorithm;
+import com.litesuits.orm.db.model.EntityTable;
+import com.litesuits.orm.db.model.MapProperty;
+import com.litesuits.orm.db.model.RelationKey;
 import com.litesuits.orm.db.utils.ClassUtil;
 import com.litesuits.orm.db.utils.DataUtil;
 import com.litesuits.orm.db.utils.FieldUtil;
@@ -34,7 +45,11 @@ import com.litesuits.orm.log.OrmLog;
 
 import java.io.File;
 import java.io.FileFilter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 数据SQLite操作实现
@@ -73,29 +88,6 @@ public abstract class LiteOrm extends SQLiteClosable implements DataBase {
         mConfig = config;
         setDebugged(config.debugged);
         openOrCreateDatabase();
-    }
-
-    @Override
-    public SQLiteDatabase openOrCreateDatabase() {
-        initDatabasePath(mConfig.dbName);
-        if (mHelper != null) {
-            justRelease();
-        }
-        mHelper = new SQLiteHelper(mConfig.context.getApplicationContext(),
-                mConfig.dbName, null, mConfig.dbVersion, mConfig.onUpdateListener);
-        mTableManager = new TableManager(mConfig.dbName, mHelper.getReadableDatabase());
-        return mHelper.getWritableDatabase();
-    }
-
-    private void initDatabasePath(String path) {
-        OrmLog.i(TAG, "create  database path: " + path);
-        path = mConfig.context.getDatabasePath(mConfig.dbName).getPath();
-        OrmLog.i(TAG, "context database path: " + path);
-        File dbp = new File(path).getParentFile();
-        if (dbp != null && !dbp.exists()) {
-            boolean mks = dbp.mkdirs();
-            OrmLog.i(TAG, "create database, parent file mkdirs: " + mks + "  path:" + dbp.getAbsolutePath());
-        }
     }
 
     /**
@@ -138,6 +130,39 @@ public abstract class LiteOrm extends SQLiteClosable implements DataBase {
      */
     public synchronized static LiteOrm newCascadeInstance(DataBaseConfig config) {
         return CascadeSQLiteImpl.newInstance(config);
+    }
+
+    /**
+     * Attempts to release memory that SQLite holds but does not require to
+     * operate properly. Typically this memory will come from the page cache.
+     *
+     * @return the number of bytes actually released
+     */
+    public static int releaseMemory() {
+        return SQLiteDatabase.releaseMemory();
+    }
+
+    @Override
+    public SQLiteDatabase openOrCreateDatabase() {
+        initDatabasePath(mConfig.dbName);
+        if (mHelper != null) {
+            justRelease();
+        }
+        mHelper = new SQLiteHelper(mConfig.context.getApplicationContext(),
+                mConfig.dbName, null, mConfig.dbVersion, mConfig.onUpdateListener);
+        mTableManager = new TableManager(mConfig.dbName, mHelper.getReadableDatabase());
+        return mHelper.getWritableDatabase();
+    }
+
+    private void initDatabasePath(String path) {
+        OrmLog.i(TAG, "create  database path: " + path);
+        path = mConfig.context.getDatabasePath(mConfig.dbName).getPath();
+        OrmLog.i(TAG, "context database path: " + path);
+        File dbp = new File(path).getParentFile();
+        if (dbp != null && !dbp.exists()) {
+            boolean mks = dbp.mkdirs();
+            OrmLog.i(TAG, "create database, parent file mkdirs: " + mks + "  path:" + dbp.getAbsolutePath());
+        }
     }
 
     /**
@@ -218,7 +243,6 @@ public abstract class LiteOrm extends SQLiteClosable implements DataBase {
         return false;
     }
 
-
     @Override
     public SQLStatement createSQLStatement(String sql, Object[] bindArgs) {
         return new SQLStatement(sql, bindArgs);
@@ -263,7 +287,6 @@ public abstract class LiteOrm extends SQLiteClosable implements DataBase {
         }
         return false;
     }
-
 
     @Override
     public <T> long queryCount(Class<T> claxx) {
@@ -400,16 +423,6 @@ public abstract class LiteOrm extends SQLiteClosable implements DataBase {
             mTableManager.release();
             mTableManager = null;
         }
-    }
-
-    /**
-     * Attempts to release memory that SQLite holds but does not require to
-     * operate properly. Typically this memory will come from the page cache.
-     *
-     * @return the number of bytes actually released
-     */
-    public static int releaseMemory() {
-        return SQLiteDatabase.releaseMemory();
     }
 
     /* --------------------------------  私有方法 -------------------------------- */

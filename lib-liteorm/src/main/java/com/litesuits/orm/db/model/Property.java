@@ -41,10 +41,10 @@ public class Property implements Serializable {
     @Override
     public String toString() {
         return "Property{" +
-               "column='" + column + '\'' +
-               ", field=" + field +
-               ", classType=" + classType +
-               '}';
+                "column='" + column + '\'' +
+                ", field=" + field +
+                ", classType=" + classType +
+                '}';
     }
 
 }

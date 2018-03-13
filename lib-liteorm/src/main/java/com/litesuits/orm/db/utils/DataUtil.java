@@ -3,13 +3,18 @@ package com.litesuits.orm.db.utils;
 import android.annotation.TargetApi;
 import android.database.Cursor;
 import android.os.Build;
-import android.util.Log;
-import com.litesuits.orm.log.OrmLog;
+
 import com.litesuits.orm.db.assit.Checker;
 import com.litesuits.orm.db.model.EntityTable;
 import com.litesuits.orm.db.model.Property;
+import com.litesuits.orm.log.OrmLog;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,7 +30,6 @@ import java.util.List;
  */
 public class DataUtil implements Serializable {
     public static final String TAG = DataUtil.class.getSimpleName();
-    private static final long serialVersionUID = 6668874253056236676L;
     /**
      * NULL. The value is a NULL value.
      */
@@ -49,49 +53,40 @@ public class DataUtil implements Serializable {
      * BLOB. The value is a blob of data, stored exactly as it was input.
      */
     public static final String BLOB = " BLOB ";
-
     /**
      * Value returned by {@link #getType(Object)} if the specified column is null
      */
     public static final int FIELD_TYPE_NULL = 0;
-
     /**
      * Value returned by {@link #getType(Object)} if the specified column type is
      * integer or long
      */
     public static final int FIELD_TYPE_LONG = 1;
-
     /**
      * Value returned by {@link #getType(Object)} if the specified column type is
      * float or double
      */
     public static final int FIELD_TYPE_REAL = 2;
-
     /**
      * Value returned by {@link #getType(Object)} if the specified column type is
      * string
      */
     public static final int FIELD_TYPE_STRING = 3;
-
     /**
      * Value returned by {@link #getType(Object)} if the specified column type is
      * blob
      */
     public static final int FIELD_TYPE_BLOB = 4;
-
     /**
      * Value returned by {@link #getType(Object)} if the specified column type is
      * date
      */
     public static final int FIELD_TYPE_DATE = 5;
-
     /**
      * Value returned by {@link #getType(Object)} if the specified column type is
      * serializable
      */
     public static final int FIELD_TYPE_SERIALIZABLE = 6;
-
-
     public static final int CLASS_TYPE_NONE = 0;
     public static final int CLASS_TYPE_STRING = 1;
     public static final int CLASS_TYPE_BOOLEAN = 2;
@@ -106,7 +101,7 @@ public class DataUtil implements Serializable {
     public static final int CLASS_TYPE_DATE = 11;
     public static final int CLASS_TYPE_SERIALIZABLE = 12;
     public static final int CLASS_TYPE_UNKNOWN = 13;
-
+    private static final long serialVersionUID = 6668874253056236676L;
 
     /**
      * Returns data type of the given object.

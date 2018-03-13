@@ -43,14 +43,14 @@ public class SQLiteTable implements Serializable {
     @Override
     public String toString() {
         return "SQLiteTable{" +
-               "type='" + type + '\'' +
-               ", name='" + name + '\'' +
-               ", tbl_name='" + tbl_name + '\'' +
-               ", rootpage=" + rootpage +
-               ", sql='" + sql + '\'' +
-               ", isTableChecked=" + isTableChecked +
-               ", columns=" + columns +
-               '}';
+                "type='" + type + '\'' +
+                ", name='" + name + '\'' +
+                ", tbl_name='" + tbl_name + '\'' +
+                ", rootpage=" + rootpage +
+                ", sql='" + sql + '\'' +
+                ", isTableChecked=" + isTableChecked +
+                ", columns=" + columns +
+                '}';
     }
 
 }
